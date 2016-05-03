@@ -15,7 +15,7 @@ const router = require('express').Router();
  * @apiParam {string} name - Name of the group
  * @apiParam {string} userId - Facebook user ID of group creator
  */
-router.post('/', (req, res) => {
+router.post('/', (req, res, next) => {
   const name = req.body.name;
 
   // TODO: validate user id
@@ -32,10 +32,7 @@ router.post('/', (req, res) => {
     creator: userId,
     name: name
   }, (err) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json(err);
-    }
+    if (err) return next(err);
 
     // after the group is created,
     // 1. create a new array under the group called 'members'
@@ -62,7 +59,7 @@ router.post('/', (req, res) => {
     ];
 
     async.parallel(parallelFns, (err) => {
-      if (err) return res.status(err.statusCode || 500).json(err);
+      if (err) return next(err);
       return res.json({
         msg: `Created group '${groupId}'`,
         groupId: groupId
@@ -79,7 +76,7 @@ router.post('/', (req, res) => {
  * @apiParam {string} userId - Facebook user ID of person to add
  * to the group
  */
-router.put('/:groupId', (req, res) => {
+router.put('/:groupId', (req, res, next) => {
   const userId = util.sanitizeFirebaseRef(req.body.userId);
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
 
@@ -112,11 +109,7 @@ router.put('/:groupId', (req, res) => {
   };
 
   async.parallel(parallelFns, (err, result) => {
-    if (err) {
-      return res.status(404).json({
-        msg: `Could not add member ${userId} to group ${groupId}`
-      });
-    }
+    if (err) return next(err);
 
     const groupRef = firebase.child(`groups/${groupId}`);
 
@@ -125,10 +118,7 @@ router.put('/:groupId', (req, res) => {
     groupRef.child('members').push().set({
       userId: userId
     }, (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json(err);
-      }
+      if (err) return next(err);
       return res.json({
         msg: `Added ${userId} to group ${groupId}`
       });
@@ -145,7 +135,7 @@ router.put('/:groupId', (req, res) => {
  * the task
  * @apiParam {string} [assignedTo] - ID of the user this task was assigned to
  */
-router.post('/:groupId/task', (req, res) => {
+router.post('/:groupId/task', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
   const creatorId = util.sanitizeFirebaseRef(req.body.creator);
   const assignedTo = req.body.assignedTo ?
@@ -199,9 +189,7 @@ router.post('/:groupId/task', (req, res) => {
   ];
 
   async.waterfall(waterfallFns, (err, result) => {
-    if (err) {
-      return res.status( err.statusCode || 500 ).json(err);
-    }
+    if (err) return next(err);
     return res.json(result);
   });
 });
@@ -216,7 +204,7 @@ router.post('/:groupId/task', (req, res) => {
  * @apiParam {string} userId - Facebook user ID of the person who completed
  * the task
  */
-router.post('/:groupId/complete/:taskId', (req, res) => {
+router.post('/:groupId/complete/:taskId', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
   const taskId = util.sanitizeFirebaseRef(req.params.taskId);
   const userId = util.sanitizeFirebaseRef(req.body.userId);
@@ -290,13 +278,10 @@ router.post('/:groupId/complete/:taskId', (req, res) => {
   ];
 
   async.waterfall(waterfallFns, (err) => {
-    if (err) {
-      return res.status(err.statusCode || 500).json(err);
-    } else {
-      return res.json({
-        msg: `Successfully marked task '${taskId}' as completed by '${userId}'`
-      });
-    }
+    if (err)  return next(err);
+    return res.json({
+      msg: `Successfully marked task '${taskId}' as completed by '${userId}'`
+    });
   });
 });
 

@@ -5,6 +5,7 @@ const router = require('express').Router();
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 router.use('/group', require('./group'));
+router.use('/user', require('./user'));
 
 /**
  * @api {post} /register

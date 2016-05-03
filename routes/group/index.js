@@ -121,6 +121,76 @@ router.put('/:groupId', (req, res) => {
 });
 
 /**
+ * @api {post} /group/:groupId/task
+ * Creates a task and adds it to a group
+ *
+ * @apiParam {string} groupId - ID of the group
+ * @apiParam {string} creator - Facebook user ID of the person who created
+ * the task
+ * @apiParam {string} [assignedTo] - ID of the user this task was assigned to
+ */
+router.post('/:groupId/task', (req, res) => {
+  let groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  let creatorId = util.sanitizeFirebaseRef(req.body.creator);
+  let assignedTo = req.body.assignedTo ?
+    util.sanitizeFirebaseRef(req.body.assignedTo) : null;
+
+  // TODO: store this in such a way that the verb tense can be
+  // changed easily (e.g. 'Clean the dishes' --> 'Cleaned the dishes')
+  let title = req.body.title;
+
+  let waterfallFns = [
+    function loadSnapshot(callback) {
+      firebase.child(`/groups/${groupId}`).once(
+        'value', (snapshot) => callback(null, snapshot), (err) => callback(err)
+      );
+    },
+
+    function checkCreator(groupSnapshot, callback) {
+      // guarantee that the creator and assignedTo are members of the group
+      let c = false;
+      let a = assignedTo === null;
+      groupSnapshot.child('members').forEach((memberSnapshot) => {
+        let memberId = memberSnapshot.child('userId').val();
+
+        if (memberId === creatorId) c = true;
+        if (memberId === assignedTo) a = true;
+
+        if (c && a) return callback(null);
+      });
+
+      // already called callback
+      if (c && a) return;
+
+      let err = new Error(`User ${creatorId} not in group ${groupId}`);
+      err.statusCode = 403;
+      return callback(err);
+    },
+
+    function createTask(callback) {
+      let taskRef = firebase.child(`groups/${groupId}/tasks`).push();
+      taskRef.set({
+        title: title,
+        creator: creatorId,
+        assignedTo: assignedTo
+      }, (err) => {
+        if (err) return callback(err);
+
+        let taskId = taskRef.key();
+        return callback(null, { taskId: taskId });
+      });
+    }
+  ];
+
+  async.waterfall(waterfallFns, (err, result) => {
+    if (err) {
+      return res.status( err.statusCode || 500 ).json(err);
+    }
+    return res.json(result);
+  });
+});
+
+/**
  * @api {post} /group/:groupId/complete/:taskId
  * Marks a task as completed and sends push notifications to the task's
  * group members

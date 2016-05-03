@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ silent: true });
 
 const http    = require('http');
 const express = require('express');

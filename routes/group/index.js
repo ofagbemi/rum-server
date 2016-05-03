@@ -6,7 +6,7 @@ const util  = require('../../lib/util');
 const push  = require('../../lib/push');
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
-let router = require('express').Router();
+const router = require('express').Router();
 
 /**
  * @api {post} /group
@@ -16,13 +16,13 @@ let router = require('express').Router();
  * @apiParam {string} userId - Facebook user ID of group creator
  */
 router.post('/', (req, res) => {
-  let name = req.body.name;
+  const name = req.body.name;
 
   // TODO: validate user id
-  let userId = req.body.userId;
+  const userId = req.body.userId;
 
   // create a group with a unique ID
-  let groupRef = firebase.child('groups').push();
+  const groupRef = firebase.child('groups').push();
 
   // set the value at the unique ID to an object with members
   // 'creator' and 'name'
@@ -38,7 +38,7 @@ router.post('/', (req, res) => {
     // after the group is created, create a new array
     // under the group called 'members' and add the creator
     // to it
-    let groupId  = groupRef.key();
+    const groupId  = groupRef.key();
     firebase.child(`groups/${groupId}/members`).push().set({
       userId: userId
     }, (err) => {
@@ -64,14 +64,14 @@ router.post('/', (req, res) => {
  * to the group
  */
 router.put('/:groupId', (req, res) => {
-  let userId = util.sanitizeFirebaseRef(req.body.userId);
-  let groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const userId = util.sanitizeFirebaseRef(req.body.userId);
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
 
   // make sure that both the group and the user exist before adding
   // the user to the group
-  let parallelFns = {
+  const parallelFns = {
     userId: (callback) => {
-      let userRef = firebase.child(`users/${userId}`);
+      const userRef = firebase.child(`users/${userId}`);
       userRef.once('value', (snapshot) => {
         if (!snapshot.exists()) {
           return callback(new Error(`Couldn't find group ${groupId}`));
@@ -82,7 +82,7 @@ router.put('/:groupId', (req, res) => {
     },
 
     groupId: (callback) => {
-      let groupRef = firebase.child(`groups/${groupId}`);
+      const groupRef = firebase.child(`groups/${groupId}`);
       groupRef.once('value', (snapshot) => {
         if (!snapshot.exists()) {
           return callback(new Error({
@@ -102,7 +102,7 @@ router.put('/:groupId', (req, res) => {
       });
     }
 
-    let groupRef = firebase.child(`groups/${groupId}`);
+    const groupRef = firebase.child(`groups/${groupId}`);
 
     // if the group exists, add a new member
     // to its list of group members
@@ -130,16 +130,16 @@ router.put('/:groupId', (req, res) => {
  * @apiParam {string} [assignedTo] - ID of the user this task was assigned to
  */
 router.post('/:groupId/task', (req, res) => {
-  let groupId = util.sanitizeFirebaseRef(req.params.groupId);
-  let creatorId = util.sanitizeFirebaseRef(req.body.creator);
-  let assignedTo = req.body.assignedTo ?
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const creatorId = util.sanitizeFirebaseRef(req.body.creator);
+  const assignedTo = req.body.assignedTo ?
     util.sanitizeFirebaseRef(req.body.assignedTo) : null;
 
   // TODO: store this in such a way that the verb tense can be
   // changed easily (e.g. 'Clean the dishes' --> 'Cleaned the dishes')
-  let title = req.body.title;
+  const title = req.body.title;
 
-  let waterfallFns = [
+  const waterfallFns = [
     function loadSnapshot(callback) {
       firebase.child(`/groups/${groupId}`).once(
         'value', (snapshot) => callback(null, snapshot), (err) => callback(err)
@@ -151,7 +151,7 @@ router.post('/:groupId/task', (req, res) => {
       let c = false;
       let a = assignedTo === null;
       groupSnapshot.child('members').forEach((memberSnapshot) => {
-        let memberId = memberSnapshot.child('userId').val();
+        const memberId = memberSnapshot.child('userId').val();
 
         if (memberId === creatorId) c = true;
         if (memberId === assignedTo) a = true;
@@ -162,13 +162,13 @@ router.post('/:groupId/task', (req, res) => {
       // already called callback
       if (c && a) return;
 
-      let err = new Error(`User ${creatorId} not in group ${groupId}`);
+      const err = new Error(`User ${creatorId} not in group ${groupId}`);
       err.statusCode = 403;
       return callback(err);
     },
 
     function createTask(callback) {
-      let taskRef = firebase.child(`groups/${groupId}/tasks`).push();
+      const taskRef = firebase.child(`groups/${groupId}/tasks`).push();
       taskRef.set({
         title: title,
         creator: creatorId,
@@ -176,7 +176,7 @@ router.post('/:groupId/task', (req, res) => {
       }, (err) => {
         if (err) return callback(err);
 
-        let taskId = taskRef.key();
+        const taskId = taskRef.key();
         return callback(null, { taskId: taskId });
       });
     }
@@ -201,17 +201,17 @@ router.post('/:groupId/task', (req, res) => {
  * the task
  */
 router.post('/:groupId/complete/:taskId', (req, res) => {
-  let groupId = util.sanitizeFirebaseRef(req.params.groupId);
-  let taskId = util.sanitizeFirebaseRef(req.params.taskId);
-  let userId = util.sanitizeFirebaseRef(req.body.userId);
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const taskId = util.sanitizeFirebaseRef(req.params.taskId);
+  const userId = util.sanitizeFirebaseRef(req.body.userId);
 
-  let waterfallFns = [
+  const waterfallFns = [
     // start by getting each of the members' user IDs
     function getMemberIds(callback) {
       firebase.child(`/groups/${groupId}`).once('value', (snapshot) => {
-        let members = [];
+        const members = [];
         snapshot.child('members').forEach((memberSnapshot) => {
-          let member = memberSnapshot.val();
+          const member = memberSnapshot.val();
           members.push(member);
         });
         return callback(null, members);
@@ -223,7 +223,7 @@ router.post('/:groupId/complete/:taskId', (req, res) => {
     // of the group
     function checkCompleter(members, callback) {
       if (!_.find(members, (member) => member.userId === userId )) {
-        let err = new Error(`User ${userId} is not a member of group ${groupId}`);
+        const err = new Error(`User ${userId} is not a member of group ${groupId}`);
         err.statusCode = 403;
         return callback(err);
       } else {
@@ -250,8 +250,8 @@ router.post('/:groupId/complete/:taskId', (req, res) => {
     // send completion push notifications out to each user
     // in the group
     function sendPushNotifications(users, callback) {
-      let message = `${userId} just completed a task`;
-      let parallelFns = _.map(users, (user) => {
+      const message = `${userId} just completed a task`;
+      const parallelFns = _.map(users, (user) => {
         return (cb) => {
           push.send({
             category: 'KudosCategory',

@@ -7,23 +7,6 @@ const router = require('express').Router();
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 /**
- * @api {get} /user:userId
- * Returns a JSON object representing the user with the passed
- * in ID
- *
- * @apiParam {string} userId - Facebook user id
- */
-router.get('/user/:userId', (req, res) => {
-  let userId = sanitizeFirebaseRef(req.params.userId);
-
-  firebase.child(`users/${userId}`).once('value', (snapshot) => {
-    return res.json(snapshot.val());
-  }, (err) => {
-    return res.status(500).json(err);
-  });
-});
-
-/**
  * @api {post} /register
  * Registers new users
  *
@@ -165,6 +148,23 @@ router.put('/group/:groupId', (req, res) => {
         msg: `Added ${userId} to group ${groupId}`
       });
     });
+  });
+});
+
+/**
+ * @api {get} /user:userId
+ * Returns a JSON object representing the user with the passed
+ * in ID
+ *
+ * @apiParam {string} userId - Facebook user id
+ */
+router.get('/user/:userId', (req, res) => {
+  let userId = sanitizeFirebaseRef(req.params.userId);
+
+  firebase.child(`users/${userId}`).once('value', (snapshot) => {
+    return res.json(snapshot.val());
+  }, (err) => {
+    return res.status(500).json(err);
   });
 });
 

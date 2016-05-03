@@ -35,18 +35,34 @@ router.post('/', (req, res) => {
       return res.status(500).json(err);
     }
 
-    // after the group is created, create a new array
-    // under the group called 'members' and add the creator
-    // to it
     const groupId  = groupRef.key();
-    firebase.child(`groups/${groupId}/members`).push().set({
-      userId: userId
-    }, (err) => {
-      if (err) {
-        console.error(`Error adding member '${userId}' to group '${groupId}'`);
-        console.error(err);
-        return res.status(500).json(err);
+    
+    // after the group is created,
+    // 1. create a new array under the group called 'members'
+    //    and add the creator to it
+    // 2. add the group's id to the user's list of groups
+    const parallelFns = [
+      function addCreatorToMembers(callback) {
+        firebase.child(`groups/${groupId}/members`).push().set({
+          userId: userId
+        }, (err) => {
+          if (err) return callback(err);
+          return callback();
+        });
+      },
+
+      function addGroupToGroups(callback) {
+        firebase.child(`users/${userId}/groups`).push().set({
+          groupId: groupId
+        }, (err) => {
+          if (err) return callback(err);
+          return callback();
+        });
       }
+    ];
+
+    async.parallel(parallelFns, (err) => {
+      if (err) return res.status(err.statusCode || 500).json(err);
       return res.json({
         msg: `Created group '${groupId}'`,
         groupId: groupId

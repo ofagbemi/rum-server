@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "rum",
+  "version": "0.0.0",
+  "dependencies": {
+    "apnagent": "1.1.x",
+    "async": "^2.0.0-rc.3",
+    "body-parser": "^1.15.0",
+    "dotenv": "^2.0.0",
+    "express": "^4.13.4",
+    "firebase": "^2.4.2"
+  }
+}

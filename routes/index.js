@@ -26,6 +26,7 @@ router.post('/register', (req, res) => {
   // the user id and its values to the access token and
   // device id
   firebase.child(`users/${fbUserId}`).set({
+    id: fbUserId,
     accessToken: fbAccessToken,
     deviceId: deviceId
   }, (err) => {

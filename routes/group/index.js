@@ -23,10 +23,12 @@ router.post('/', (req, res) => {
 
   // create a group with a unique ID
   const groupRef = firebase.child('groups').push();
+  const groupId  = groupRef.key();
 
   // set the value at the unique ID to an object with members
   // 'creator' and 'name'
   groupRef.set({
+    id: groupId,
     creator: userId,
     name: name
   }, (err) => {
@@ -35,8 +37,6 @@ router.post('/', (req, res) => {
       return res.status(500).json(err);
     }
 
-    const groupId  = groupRef.key();
-    
     // after the group is created,
     // 1. create a new array under the group called 'members'
     //    and add the creator to it

@@ -10,6 +10,7 @@
     "express": "^4.13.4",
     "express-handlebars": "^3.0.0",
     "firebase": "^2.4.2",
+    "goo.gl": "^0.1.4",
     "handlebars": "^4.0.5",
     "underscore": "^1.8.3"
   }

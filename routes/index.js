@@ -1,6 +1,7 @@
 'use strict';
 
-const agent = require('../agent');
+const _ = require('underscore');
+const push = require('../lib/push')
 const async = require('async');
 const router = require('express').Router();
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
@@ -164,6 +165,90 @@ router.put('/group/:groupId', (req, res) => {
         msg: `Added ${userId} to group ${groupId}`
       });
     });
+  });
+});
+
+router.post('/group/:groupId/complete/:taskId', (req, res) => {
+  let groupId = sanitizeFirebaseRef(req.params.groupId);
+  let taskId = sanitizeFirebaseRef(req.params.taskId);
+  let userId = sanitizeFirebaseRef(req.body.userId);
+
+  let waterfallFns = [
+    // start by getting each of the members' user IDs
+    function getMemberIds(callback) {
+      firebase.child(`/groups/${groupId}`).once('value', (snapshot) => {
+        let members = [];
+        snapshot.child('members').forEach((memberSnapshot) => {
+          let member = memberSnapshot.val();
+          members.push(member);
+        });
+        return callback(null, members);
+
+      }, (err) => callback(err) );
+    },
+
+    // guarantee that the completer is actually a member
+    // of the group
+    function checkCompleter(members, callback) {
+      if (!_.find(members, (member) => member.userId === userId )) {
+        let err = new Error(`User ${userId} is not a member of group ${groupId}`);
+        err.statusCode = 403;
+        return callback(err);
+      } else {
+        return callback(null, members);
+      }
+    },
+
+    // actually retrieve the user objects for each member
+    function getMembers(members, callback) {
+      let parallelFns = _.map(members, (member) => {
+        return (cb) => {
+          firebase.child(`users/${userId}`).once('value', (snapshot) => {
+            cb(null, snapshot.val());
+          }, (err) => cb(err) );
+        };
+      });
+
+      async.parallel(parallelFns, (err, users) => {
+        if (err) { return callback(err); }
+        return callback(null, users);
+      });
+    },
+
+    // send completion push notifications out to each user
+    // in the group
+    function sendPushNotifications(users, callback) {
+      let message = `${userId} just completed a task`;
+      let parallelFns = _.map(users, (user) => {
+        return (cb) => {
+          push.send({
+            category: 'KudosCategory',
+            deviceId: user.deviceId,
+            sound: 'Hope.aif',
+            message: message
+          }).then(() => {
+            return cb();
+          }).catch((err) => {
+            return cb(err);
+          });
+        };
+      });
+
+      async.parallel(parallelFns, (err) => {
+        if (err) { return callback(err); }
+        return callback();
+      });
+    }
+  ];
+
+  async.waterfall(waterfallFns, (err) => {
+    if (err) {
+      return res.status(err.statusCode || 500).json(err);
+    } else {
+      return res.json({
+        msg: `Successfully marked task '${taskId}' as completed by '${userId}'`
+      });
+    }
   });
 });
 

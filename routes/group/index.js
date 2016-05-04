@@ -220,6 +220,22 @@ router.get('/:groupId/completed', (req, res, next) => {
 });
 
 /**
+ * @api {get} /group/:groupId/task
+ * Retrieves an array of incomplete tasks
+ *
+ * @apiParam {string} groupId
+ * @apiParam {number} limit
+ */
+router.get('/:groupId/task', (req, res, next) => {
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const limit   = parseInt(req.query.limit) || null;
+
+  api.Group.getTasks({ groupId: groupId, limit: limit })
+    .then((data) => res.json(data))
+    .catch((err) => next(err));
+});
+
+/**
  * @api {post} /group/:groupId/complete/:taskId
  * Marks a task as completed and sends push notifications to the task's
  * group members

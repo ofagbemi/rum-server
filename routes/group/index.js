@@ -157,14 +157,14 @@ router.post('/:groupId/task', (req, res, next) => {
 
     function createTask(callback) {
       const taskRef = firebase.child(`groups/${groupId}/tasks`).push();
+      const taskId  = taskRef.key();
       taskRef.set({
         title: title,
         creator: creatorId,
-        assignedTo: assignedTo
+        assignedTo: assignedTo,
+        id: taskId
       }, (err) => {
         if (err) return callback(err);
-
-        const taskId = taskRef.key();
         return callback(null, { taskId: taskId });
       });
     }
@@ -221,7 +221,8 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
           category: 'KudosCategory',
           deviceId: member.deviceId,
           sound: 'Hope.aif',
-          message: message
+          message: message,
+          set: { userId: member.id, taskId: task.id }
         }).then(() => callback())
         .catch((err) => callback(err));
       };

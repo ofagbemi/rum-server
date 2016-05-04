@@ -135,6 +135,7 @@ router.delete('/:groupId', (req, res, next) => {
  * @apiParam {string} groupId - ID of the group
  * @apiParam {string} creator - Facebook user ID of the person who created
  * the task
+ * @apiParam {string} title - Title to give the task
  * @apiParam {string} [assignedTo] - ID of the user this task was assigned to
  */
 router.post('/:groupId/task', (req, res, next) => {

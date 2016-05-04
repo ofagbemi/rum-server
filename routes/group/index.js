@@ -244,6 +244,8 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
     const message = `${completerId} just completed a task: ${task.title}`;
     const fns = _.map(members, (member) => {
       return (callback) => {
+        if (!member.deviceId) return callback();
+
         push.send({
           category: 'KudosCategory',
           deviceId: member.deviceId,

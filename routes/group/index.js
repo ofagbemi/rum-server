@@ -4,6 +4,7 @@ const _ = require('underscore');
 const async = require('async');
 const util  = require('../../lib/util');
 const push  = require('../../lib/push');
+const api   = require('../../lib/api');
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 const router = require('express').Router();
@@ -21,51 +22,15 @@ router.post('/', (req, res, next) => {
   // TODO: validate user id
   const userId = req.body.userId;
 
-  // create a group with a unique ID
-  const groupRef = firebase.child('groups').push();
-  const groupId  = groupRef.key();
-
-  // set the value at the unique ID to an object with members
-  // 'creator' and 'name'
-  groupRef.set({
-    id: groupId,
-    creator: userId,
+  api.Group.create({
+    creatorId: userId,
     name: name
-  }, (err) => {
-    if (err) return next(err);
-
-    // after the group is created,
-    // 1. create a new array under the group called 'members'
-    //    and add the creator to it
-    // 2. add the group's id to the user's list of groups
-    const parallelFns = [
-      function addCreatorToMembers(callback) {
-        firebase.child(`groups/${groupId}/members`).push().set({
-          userId: userId
-        }, (err) => {
-          if (err) return callback(err);
-          return callback();
-        });
-      },
-
-      function addGroupToGroups(callback) {
-        firebase.child(`users/${userId}/groups`).push().set({
-          groupId: groupId
-        }, (err) => {
-          if (err) return callback(err);
-          return callback();
-        });
-      }
-    ];
-
-    async.parallel(parallelFns, (err) => {
-      if (err) return next(err);
-      return res.json({
-        msg: `Created group '${groupId}'`,
-        groupId: groupId
-      });
+  }).then((groupId) => {
+    return res.json({
+      msg: `Created group '${groupId}'`,
+      groupId: groupId
     });
-  });
+  }).catch((err) => next(err));
 });
 
 /**
@@ -130,55 +95,11 @@ router.put('/:groupId', (req, res, next) => {
  */
 router.delete('/:groupId', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
-
-  const waterfallFns = [
-    function deleteGroupRef(callback) {
-      firebase.child(`groups/${groupId}/members`).once('value', (membersSnapshot) => {
-        firebase.child(`groups/${groupId}`).remove((err) => {
-          if (err) return callback(err);
-          return callback(null, membersSnapshot.val());
-        });
-      }, (err) => {
-        if (err) return callback(err);
-      });
-    },
-
-    function deleteUsersGroupRefs(members, callback) {
-      const memberIds = [];
-      _.each(members, (val) => {
-        memberIds.push(val.userId);
-      });
-
-      const parallelFns = _.map(memberIds, (memberId) => {
-        return (cb) => {
-          firebase.child(`users/${memberId}/groups`)
-            .orderByChild('groupId')
-            .startAt(groupId)
-            .endAt(groupId)
-            .limitToFirst(1)
-            .once('value', (snapshot) => {
-              const key = _.first(_.keys(snapshot.val()));
-              snapshot.ref().child(key).remove((err) => {
-                if (err) return cb(err);
-                return cb();
-              });
-            }, (err) => cb(err));
-        };
-      });
-
-      async.parallel(parallelFns, (err) => {
-        if (err) return callback(err);
-        return callback();
-      });
-    }
-  ];
-
-  async.waterfall(waterfallFns, (err, result) => {
-    if (err) return next(err);
+  api.Group.remove({ groupId: groupId }).then(() => {
     return res.json({
       msg: `Deleted group ${groupId}`
     });
-  });
+  }).catch((err) => next(err));
 });
 
 /**
@@ -200,6 +121,12 @@ router.post('/:groupId/task', (req, res, next) => {
   // changed easily (e.g. 'Clean the dishes' --> 'Cleaned the dishes')
   const title = req.body.title;
 
+  if (!title) {
+    const err = new Error('No title specified');
+    err.statusCode = 400;
+    return next(err);
+  }
+
   const waterfallFns = [
     function loadSnapshot(callback) {
       firebase.child(`/groups/${groupId}`).once(
@@ -212,7 +139,7 @@ router.post('/:groupId/task', (req, res, next) => {
       let c = false;
       let a = assignedTo === null;
       groupSnapshot.child('members').forEach((memberSnapshot) => {
-        const memberId = memberSnapshot.child('userId').val();
+        const memberId = memberSnapshot.child('id').val();
 
         if (memberId === creatorId) c = true;
         if (memberId === assignedTo) a = true;
@@ -262,80 +189,50 @@ router.post('/:groupId/task', (req, res, next) => {
 router.post('/:groupId/complete/:taskId', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
   const taskId = util.sanitizeFirebaseRef(req.params.taskId);
-  const userId = util.sanitizeFirebaseRef(req.body.userId);
+  const completerId = util.sanitizeFirebaseRef(req.body.userId);
 
-  const waterfallFns = [
-    // start by getting each of the members' user IDs
-    function getMemberIds(callback) {
-      firebase.child(`/groups/${groupId}`).once('value', (snapshot) => {
-        const members = [];
-        snapshot.child('members').forEach((memberSnapshot) => {
-          const member = memberSnapshot.val();
-          members.push(member);
-        });
-        return callback(null, members);
-
-      }, (err) => callback(err) );
+  const parallelFns = {
+    task: (callback) => {
+      api.Group.completeTask({
+        groupId: groupId,
+        completerId: completerId,
+        taskId: taskId
+      }).then((task) => callback(null, task))
+      .catch((err) => callback(err));
     },
 
-    // guarantee that the completer is actually a member
-    // of the group
-    function checkCompleter(members, callback) {
-      if (!_.find(members, (member) => member.userId === userId )) {
-        const err = new Error(`User ${userId} is not a member of group ${groupId}`);
-        err.statusCode = 403;
-        return callback(err);
-      } else {
-        return callback(null, members);
-      }
-    },
-
-    // actually retrieve the user objects for each member
-    function getMembers(members, callback) {
-      let parallelFns = _.map(members, (member) => {
-        return (cb) => {
-          firebase.child(`users/${userId}`).once('value', (snapshot) => {
-            cb(null, snapshot.val());
-          }, (err) => cb(err) );
-        };
-      });
-
-      async.parallel(parallelFns, (err, users) => {
-        if (err) return callback(err);
-        return callback(null, users);
-      });
-    },
-
-    // send completion push notifications out to each user
-    // in the group
-    function sendPushNotifications(users, callback) {
-      const message = `${userId} just completed a task`;
-      const parallelFns = _.map(users, (user) => {
-        return (cb) => {
-          push.send({
-            category: 'KudosCategory',
-            deviceId: user.deviceId,
-            sound: 'Hope.aif',
-            message: message
-          }).then(() => {
-            return cb();
-          }).catch((err) => {
-            return cb(err);
-          });
-        };
-      });
-
-      async.parallel(parallelFns, (err) => {
-        if (err) { return callback(err); }
-        return callback();
-      });
+    members: (callback) => {
+      api.Group.getMembers({ groupId: groupId })
+        .then((members) => callback(null, members))
+        .catch((err) => callback(err));
     }
-  ];
+  };
 
-  async.waterfall(waterfallFns, (err) => {
-    if (err)  return next(err);
-    return res.json({
-      msg: `Successfully marked task '${taskId}' as completed by '${userId}'`
+  async.parallel(parallelFns, (err, result) => {
+    if (err) return next(err);
+
+    const task = result.task;
+    const members = result.members;
+
+    const message = `${completerId} just completed a task: ${task.title}`;
+    const fns = _.map(members, (member) => {
+      return (callback) => {
+        push.send({
+          category: 'KudosCategory',
+          deviceId: member.deviceId,
+          sound: 'Hope.aif',
+          message: message
+        }).then(() => callback())
+        .catch((err) => callback(err));
+      };
+    });
+
+    async.parallel(fns, (err) => {
+      if (err) return next(err);
+      return res.json({
+        msg: `Successfully marked task '${taskId}' ` +
+             `as completed by '${completerId}'`
+      });
     });
   });
 });

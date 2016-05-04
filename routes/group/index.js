@@ -151,7 +151,6 @@ router.delete('/:groupId', (req, res, next) => {
 
       const parallelFns = _.map(memberIds, (memberId) => {
         return (cb) => {
-          console.log(groupId);
           firebase.child(`users/${memberId}/groups`)
             .orderByChild('groupId')
             .startAt(groupId)

@@ -9,6 +9,32 @@ const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 const router = require('express').Router();
 
+router.get('/:groupId', (req, res, next) => {
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+
+  const parallelFns = {
+    group: (callback) => {
+      api.Group.get({ groupId: groupId })
+        .then((group) => callback(null, group))
+        .catch((err) => callback(err));
+    },
+
+    members: (callback) => {
+      api.Group.getMembers({ groupId: groupId })
+        .then((users) => callback(null, users))
+        .catch((err) => callback(err));
+    }
+  };
+
+  async.parallel(parallelFns, (err, result) => {
+    if (err) return next (err);
+
+    const response = result.group;
+    response.members = result.members;
+    res.json(response);
+  });
+});
+
 /**
  * @api {post} /group
  * Creates a new group

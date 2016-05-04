@@ -15,7 +15,6 @@ const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
  */
 router.get('/:userId', (req, res, next) => {
   const userId = util.sanitizeFirebaseRef(req.params.userId);
-
   const parallelFns = {
     user: (callback) => {
       api.User.get({ userId: userId })

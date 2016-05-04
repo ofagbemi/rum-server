@@ -16,6 +16,9 @@ router.use('/invite', require('./invite'));
  * @apiParam {string} userId - Facebook user id
  * @apiParam {string} accessToken - Facebook access token
  * @apiParam {string} deviceId - Client's device ID
+ * @apiParam {string} firstName
+ * @apiParam {string} lastName
+ * @apiParam {string} photo
  */
 router.post('/register', (req, res, next) => {
 

@@ -7,6 +7,8 @@ const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 router.use('/group', require('./group'));
 router.use('/user', require('./user'));
 
+router.use('/invite', require('./invite'));
+
 /**
  * @api {post} /register
  * Registers new users

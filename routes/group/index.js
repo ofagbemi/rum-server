@@ -221,7 +221,8 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
           category: 'KudosCategory',
           deviceId: member.deviceId,
           sound: 'Hope.aif',
-          message: message
+          message: message,
+          set: { userId: member.id, taskId: task.id }
         }).then(() => callback())
         .catch((err) => callback(err));
       };

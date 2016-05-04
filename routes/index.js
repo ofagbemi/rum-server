@@ -15,17 +15,17 @@ router.use('/invite', require('./invite'));
  *
  * @apiParam {string} userId - Facebook user id
  * @apiParam {string} accessToken - Facebook access token
- * @apiParam {string} deviceId - Client's device ID
  * @apiParam {string} firstName
  * @apiParam {string} lastName
  * @apiParam {string} photo
+ * @apiParam {string} [deviceId] - Client's device ID
  */
 router.post('/register', (req, res, next) => {
 
   // grab facebook user id, access token, and client device id
   const fbUserId = util.sanitizeFirebaseRef(req.body.userId);
   const fbAccessToken = req.body.accessToken;
-  const deviceId = req.body.deviceId;
+  const deviceId = req.body.deviceId || null;
 
   const firstName = req.body.firstName;
   const lastName  = req.body.lastName;
@@ -37,8 +37,6 @@ router.post('/register', (req, res, next) => {
     message = `Must specify valid Facebook user ID \`userId\` - got: '${fbUserId}'`;
   } else if(!fbAccessToken) {
     message = 'Must specify Facebook access token `accessToken`';
-  } else if(!deviceId) {
-    message = 'Must specify device ID `deviceId`';
   } else if(!firstName) {
     message = 'Must specify a first name `firstName`';
   } else if(!lastName) {

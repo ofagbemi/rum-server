@@ -31,17 +31,17 @@ router.post('/register', (req, res, next) => {
 
   let message = null;
   if(!fbUserId) {
-    message = `Must specify valid Facebook user ID - got: '${fbUserId}'`;
+    message = `Must specify valid Facebook user ID \`userId\` - got: '${fbUserId}'`;
   } else if(!fbAccessToken) {
-    message = 'Must specify Facebook access token';
+    message = 'Must specify Facebook access token `accessToken`';
   } else if(!deviceId) {
-    message = 'Must specify device ID';
+    message = 'Must specify device ID `deviceId`';
   } else if(!firstName) {
-    message = 'Must specify a first name';
+    message = 'Must specify a first name `firstName`';
   } else if(!lastName) {
-    message = 'Must specify a last name';
+    message = 'Must specify a last name `lastName`';
   } else if(!photo) {
-    message = 'Must specify a photo';
+    message = 'Must specify a photo `photo`';
   }
 
   if (message) {

@@ -98,9 +98,7 @@ router.put('/:groupId', (req, res, next) => {
       const groupRef = firebase.child(`groups/${groupId}`);
       groupRef.once('value', (snapshot) => {
         if (!snapshot.exists()) {
-          return callback(new Error({
-            msg: `Couldn't find group ${groupId}`
-          }));
+          return callback(new Error(`Couldn't find group ${groupId}`));
         } else {
           return callback(null, groupId);
         }
@@ -119,9 +117,67 @@ router.put('/:groupId', (req, res, next) => {
       userId: userId
     }, (err) => {
       if (err) return next(err);
-      return res.json({
-        msg: `Added ${userId} to group ${groupId}`
+      return res.json(`Added ${userId} to group ${groupId}`);
+    });
+  });
+});
+
+/**
+ * @api {delete} /group/:groupId
+ * Deletes a group
+ *
+ * @apiParam {string} groupId - ID of the group
+ */
+router.delete('/:groupId', (req, res, next) => {
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+
+  const waterfallFns = [
+    function deleteGroupRef(callback) {
+      firebase.child(`groups/${groupId}/members`).once('value', (membersSnapshot) => {
+        firebase.child(`groups/${groupId}`).remove((err) => {
+          if (err) return callback(err);
+          return callback(null, membersSnapshot.val());
+        });
+      }, (err) => {
+        if (err) return callback(err);
       });
+    },
+
+    function deleteUsersGroupRefs(members, callback) {
+      const memberIds = [];
+      _.each(members, (val) => {
+        memberIds.push(val.userId);
+      });
+
+      const parallelFns = _.map(memberIds, (memberId) => {
+        return (cb) => {
+          console.log(groupId);
+          firebase.child(`users/${memberId}/groups`)
+            .orderByChild('groupId')
+            .startAt(groupId)
+            .endAt(groupId)
+            .limitToFirst(1)
+            .once('value', (snapshot) => {
+              const key = _.first(_.keys(snapshot.val()));
+              snapshot.ref().child(key).remove((err) => {
+                if (err) return cb(err);
+                return cb();
+              });
+            }, (err) => cb(err));
+        };
+      });
+
+      async.parallel(parallelFns, (err) => {
+        if (err) return callback(err);
+        return callback();
+      });
+    }
+  ];
+
+  async.waterfall(waterfallFns, (err, result) => {
+    if (err) return next(err);
+    return res.json({
+      msg: `Deleted group ${groupId}`
     });
   });
 });

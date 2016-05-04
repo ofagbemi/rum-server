@@ -83,7 +83,7 @@ function validateInvitation(inviter, groupId) {
           // make sure that the inviter is a member of the group
           let found = false;
           snapshot.child('members').forEach((memberSnapshot) => {
-            if (memberSnapshot.child('userId').val() === inviter) {
+            if (memberSnapshot.child('id').val() === inviter) {
               found = true;
               return callback(null, snapshot.val());
             }

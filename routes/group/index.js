@@ -135,11 +135,11 @@ router.post('/:groupId/task', (req, res, next) => {
         if (memberId === creatorId) c = true;
         if (memberId === assignedTo) a = true;
 
-        if (c && a) return callback(null);
+        // cut out early
+        if (c && a) return true;
       });
 
-      // already called callback
-      if (c && a) return;
+      if (c && a) return callback();
 
       const err = new Error(`User ${creatorId} not in group ${groupId}`);
       err.statusCode = 403;

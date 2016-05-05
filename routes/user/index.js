@@ -38,4 +38,20 @@ router.get('/:userId', (req, res, next) => {
   });
 });
 
+/**
+ * @api {post} /user/:userId/kudos
+ * Gives kudos to a user
+ *
+ * @apiParam {string} userId - Facebook user ID
+ * @apiParam {number} [number=1] - Number of kudos to give to the
+ * specified user
+ */
+router.post('/:userId/kudos', (req, res, next) => {
+  const userId = util.sanitizeFirebaseRef(req.params.userId);
+  const number = Math.floor(Number(req.body.number)) || 1;
+  api.User.giveKudos({ userId: userId, number: number })
+    .then((kudos) => res.json({ kudos: kudos }))
+    .catch((err) => next(err));
+});
+
 module.exports = router;

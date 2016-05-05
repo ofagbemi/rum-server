@@ -1,39 +1,29 @@
 'use strict';
 
-const qs = require('querystring');
-const async = require('async');
-const util = require('../../lib/util');
-const googl = require('goo.gl');
+const _ = require('underscore');
+const api    = require('../../lib/api');
+const base32 = require('base32');
+const util   = require('../../lib/util');
 const router = require('express').Router();
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 /**
- * @api {get} /invite
- * Loads invitation page for a user and group
+ * @api {get} /invite/:code
+ * Retrieves the user ID and group ID that correspond to a previously
+ * generated invitation code
  *
- * @apiParam {string} groupId - Group id
- * @apiParam {string} inviter - Facebook user ID
+ * @apiParam {string} code - Invitation code
  */
-router.get('/', (req, res, next) => {
-  const groupId = util.sanitizeFirebaseRef(req.query.groupId);
-  const inviterId = util.sanitizeFirebaseRef(req.query.inviter);
-
-  validateInvitation(inviterId, groupId).then((result) => {
-    const group = result.group;
-    const inviter = result.inviter;
-
-    res.render('invitation', {
-      group: group,
-      inviter: inviter
-    });
-  }).catch((err) => {
-    return next(err);
-  });
+router.get('/:code', (req, res, next) => {
+  const code = util.sanitizeFirebaseRef(req.params.code);
+  api.Invite.get({ code: code }).then((invite) => {
+    return res.json(invite);
+  }).catch((err) => next(err));
 });
 
 /**
  * @api {post} /invite
- * Creates an invitation link sends it back to the caller
+ * Creates an invitation code and sends it back to the caller
  *
  * @apiParam {string} groupId - Group id
  * @apiParam {string} inviter - Facebook user ID
@@ -42,67 +32,20 @@ router.post('/', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.body.groupId);
   const inviter = util.sanitizeFirebaseRef(req.body.inviter);
 
-  validateInvitation(inviter, groupId).then(() => {
-    // build the url, then shorten it
-    const url = `${process.env.APP_URL}/invite?` + qs.stringify({
-      groupId: groupId,
-      inviter: inviter
-    });
-    googl.setKey(process.env.GOOGLE_API_KEY);
-    googl.shorten(url).then((shortUrl) => {
-      return res.json({
-        url: shortUrl
-      });
-    }).catch((err) => next(err));
-  }).catch((err) => next(err));
-});
+  // verify that the group exists and that the inviter
+  // is a member of the group
+  api.Group.getMembers({ groupId: groupId }).then((members) => {
+    const match = _.find(members, (member) => member.id === inviter);
+    if (!match) {
+      const err = new Error(`User ${inviter} is not a member of group ${groupId}`);
+      err.statusCode = 403;
+      return next(err);
+    }
 
-function validateInvitation(inviter, groupId) {
-  return new Promise((resolve, reject) => {
-    // guarantee that both group and inviter exist
-    const parallelFns = {
-      inviter: function checkInviter(callback) {
-        firebase.child(`/users/${inviter}`).once('value', (snapshot) => {
-          if (!snapshot.exists()) {
-            const err = new Error(`User ${inviter} does not exist`);
-            err.statusCode = 404;
-            return callback(err);
-          }
-          return callback(null, snapshot.val());
-        });
-      },
-
-      group: function checkGroup(callback) {
-        firebase.child(`/groups/${groupId}`).once('value', (snapshot) => {
-          if (!snapshot.exists()) {
-            const err = new Error(`User ${inviter} does not exist`);
-            err.statusCode = 404;
-            return callback(err);
-          }
-
-          // make sure that the inviter is a member of the group
-          let found = false;
-          snapshot.child('members').forEach((memberSnapshot) => {
-            if (memberSnapshot.child('id').val() === inviter) {
-              found = true;
-              return callback(null, snapshot.val());
-            }
-          });
-
-          if (!found) {
-            const err = new Error(`User ${inviter} is not a member of group ${groupId}`);
-            err.statusCode = 403;
-            return callback(err);
-          }
-        });
-      }
-    };
-
-    async.parallel(parallelFns, (err, result) => {
-      if (err) return reject(err);
-      return resolve(result);
-    });
+    api.Invite.create({ groupId: groupId, inviter: inviter})
+      .then((code) => res.json({ code: code }))
+      .catch((err) => next(err));
   });
-}
+});
 
 module.exports = router;

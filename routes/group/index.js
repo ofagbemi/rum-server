@@ -72,8 +72,9 @@ router.put('/:groupId', (req, res, next) => {
   const userId = util.sanitizeFirebaseRef(req.body.userId);
 
   api.Group.addUserToGroup({ userId: userId, groupId: groupId})
-    .then(() => res.json({ msg: `Successfully added user '${userId}' to group '${groupId}'`}))
-    .catch((err) => next(err));
+    .then(() => res.json({
+      msg: `Successfully added user '${userId}' to group '${groupId}'`
+    })).catch((err) => next(err));
 });
 
 /**

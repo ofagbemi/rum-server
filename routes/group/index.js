@@ -105,7 +105,7 @@ router.put('/:groupId', (req, res, next) => {
     // if the group exists, add a new member
     // to its list of group members
     groupRef.child('members').push().set({
-      userId: userId
+      id: userId
     }, (err) => {
       if (err) return next(err);
       return res.json(`Added ${userId} to group ${groupId}`);

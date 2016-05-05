@@ -167,6 +167,22 @@ router.post('/:groupId/task', (req, res, next) => {
 });
 
 /**
+ * @api {delete} /group/:groupId/task/:taskId
+ * Delete a given task
+ *
+ * @apiParam {string} groupId
+ * @apiParam {string} taskId
+ */
+router.delete('/:groupId/task/:taskId', (req, res, next) => {
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const taskId  = util.sanitizeFirebaseRef(req.params.taskId);
+
+  api.Group.deleteTask({ taskId: taskId, groupId: groupId })
+    .then(() => res.json({ msg: `Deleted task '${taskId}' in group '${groupId}'` }))
+    .catch((err) => next(err));
+});
+
+/**
  * @api {get} /group/:groupId/completed
  * Retrieves an array of completed tasks
  *

@@ -246,7 +246,7 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
           deviceId: member.deviceId,
           sound: 'Hope.aif',
           message: message,
-          set: { userId: member.id, taskId: task.id }
+          set: { userId: completerId, taskId: task.id }
         }).then(() => callback())
         .catch((err) => callback(err));
       };

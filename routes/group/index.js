@@ -68,49 +68,12 @@ router.post('/', (req, res, next) => {
  * to the group
  */
 router.put('/:groupId', (req, res, next) => {
-  const userId = util.sanitizeFirebaseRef(req.body.userId);
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const userId = util.sanitizeFirebaseRef(req.body.userId);
 
-  // make sure that both the group and the user exist before adding
-  // the user to the group
-  const parallelFns = {
-    userId: (callback) => {
-      const userRef = firebase.child(`users/${userId}`);
-      userRef.once('value', (snapshot) => {
-        if (!snapshot.exists()) {
-          return callback(new Error(`Couldn't find group ${groupId}`));
-        } else {
-          return callback(null, userId);
-        }
-      });
-    },
-
-    groupId: (callback) => {
-      const groupRef = firebase.child(`groups/${groupId}`);
-      groupRef.once('value', (snapshot) => {
-        if (!snapshot.exists()) {
-          return callback(new Error(`Couldn't find group ${groupId}`));
-        } else {
-          return callback(null, groupId);
-        }
-      });
-    }
-  };
-
-  async.parallel(parallelFns, (err, result) => {
-    if (err) return next(err);
-
-    const groupRef = firebase.child(`groups/${groupId}`);
-
-    // if the group exists, add a new member
-    // to its list of group members
-    groupRef.child('members').push().set({
-      id: userId
-    }, (err) => {
-      if (err) return next(err);
-      return res.json(`Added ${userId} to group ${groupId}`);
-    });
-  });
+  api.Group.addUserToGroup({ userId: userId, groupId: groupId})
+    .then(() => res.json({ msg: `Successfully added user '${userId}' to group '${groupId}'`}))
+    .catch((err) => next(err));
 });
 
 /**

@@ -235,8 +235,8 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
 
     const task = result.task;
     const members = result.members;
-
-    const message = `${completerId} just completed a task: ${task.title}`;
+    const completer = _.find(result.members, (m) => m.id === completerId);
+    const message = `${completer.firstName} just completed a task: ${task.title}`;
     const fns = _.map(members, (member) => {
       return (callback) => {
         if (!member.deviceId) return callback();

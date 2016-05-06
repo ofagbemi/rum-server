@@ -7,9 +7,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const session    = require('express-session');
 const RedisStore = require('connect-redis')(session);
+const compression = require('compression');
 
 const app = express();
 
+app.use(compression());
 app.use((req, res, next) => {
   req.data = req.data || {};
   return next();

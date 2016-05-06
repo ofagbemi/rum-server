@@ -8,6 +8,11 @@ const bodyParser = require('body-parser');
 
 const app = express();
 
+app.use((req, res, next) => {
+  req.data = req.data || {};
+  return next();
+});
+
 app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 app.use(require('./routes'));

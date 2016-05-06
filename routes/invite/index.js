@@ -26,11 +26,10 @@ router.get('/:code', (req, res, next) => {
  * Creates an invitation code and sends it back to the caller
  *
  * @apiParam {string} groupId - Group id
- * @apiParam {string} inviter - Facebook user ID
  */
 router.post('/', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.body.groupId);
-  const inviter = util.sanitizeFirebaseRef(req.body.inviter);
+  const inviter = req.session.userId;
 
   // verify that the group exists and that the inviter
   // is a member of the group

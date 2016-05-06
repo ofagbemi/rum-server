@@ -40,13 +40,10 @@ router.get('/:groupId', (req, res, next) => {
  * Creates a new group
  *
  * @apiParam {string} name - Name of the group
- * @apiParam {string} userId - Facebook user ID of group creator
  */
 router.post('/', (req, res, next) => {
   const name = req.body.name;
-
-  // TODO: validate user id
-  const userId = req.body.userId;
+  const userId = req.session.userId;
 
   api.Group.create({
     creatorId: userId,
@@ -97,14 +94,12 @@ router.delete('/:groupId', (req, res, next) => {
  * Creates a task and adds it to a group
  *
  * @apiParam {string} groupId - ID of the group
- * @apiParam {string} creator - Facebook user ID of the person who created
- * the task
  * @apiParam {string} title - Title to give the task
  * @apiParam {string} [assignedTo] - ID of the user this task was assigned to
  */
 router.post('/:groupId/task', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
-  const creatorId = util.sanitizeFirebaseRef(req.body.creator);
+  const creatorId = req.session.userId;
   const assignedTo = req.body.assignedTo ?
     util.sanitizeFirebaseRef(req.body.assignedTo) : null;
 

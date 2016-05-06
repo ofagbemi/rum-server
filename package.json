@@ -7,9 +7,12 @@
     "async": "^2.0.0-rc.3",
     "base32": "0.0.6",
     "body-parser": "^1.15.0",
+    "connect-redis": "^3.0.2",
     "dotenv": "^2.0.0",
     "express": "^4.13.4",
+    "express-session": "^1.13.0",
     "firebase": "^2.4.2",
+    "request": "^2.72.0",
     "underscore": "^1.8.3"
   }
 }

@@ -1,13 +1,69 @@
 'use strict';
 
+const api = require('../lib/api');
 const util = require('../lib/util');
+const async = require('async');
 const router = require('express').Router();
 const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
-router.use('/group', require('./group'));
-router.use('/user', require('./user'));
+const verifyLoggedInMiddleware = api.Login.loggedInMiddleware();
 
-router.use('/invite', require('./invite'));
+router.use('/group', verifyLoggedInMiddleware, require('./group'));
+router.use('/user', verifyLoggedInMiddleware, require('./user'));
+router.use('/invite', verifyLoggedInMiddleware, require('./invite'));
+
+router.post('/login', (req, res, next) => {
+  const fbUserId = util.sanitizeFirebaseRef(req.body.userId);
+  const fbAccessToken = req.body.accessToken;
+
+  const parallelFns = [
+    // make sure that the user exists
+    function checkUser(callback) {
+      api.User.exists({ userId: fbUserId }).then((exists) => {
+        if (!exists) {
+          const err = new Error(`User ${fbUserId} could not be found`);
+          err.statusCode = 404;
+          return callback(err);
+        }
+        return callback();
+      }).catch((err) => callback(err));
+    },
+
+    // make sure that the access token looks valid
+    function checkAccessToken(callback) {
+      api.User.verifyAccessToken({
+        userId: fbUserId,
+        accessToken: fbAccessToken
+      }).then((tokenIsValid) => {
+        if (!tokenIsValid) {
+          const err = new Error(`Invalid access token for user ${fbUserId}`);
+          err.statusCode = 403;
+          return callback(err);
+        }
+        return callback();
+      }).catch((err) => callback(err));
+    }
+  ];
+
+  async.parallel(parallelFns, (err) => {
+    if (err) return next(err);
+
+    // update the user's access token in the db
+    api.User.update({
+      userId: fbUserId,
+      update: { accessToken: fbAccessToken }
+    }).then(() => {
+      // once everything checks out, move on to the
+      // login middleware
+      // set req.data.userId for the login middleware
+      req.data.userId = fbUserId;
+      return next();
+    }).catch((err) => next(err));
+  });
+}, api.Login.loginMiddleware(), (req, res) => {
+  const userId = req.session.userId;
+  return res.json({ msg: `Successfully logged in user '${userId}'`});
+});
 
 /**
  * @api {post} /register

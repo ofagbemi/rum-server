@@ -35,4 +35,12 @@ router.post('/register', api.Login.registerMiddleware(), (req, res) => {
   return res.json({ msg: `Successfully registered user '${userId}'`});
 });
 
+router.post('/logout', (req, res, next) => {
+  req.data.userId = req.session.userId;
+  return next();
+}, api.Login.logoutMiddleware(), (req, res) => {
+  const userId = req.body.userId;
+  return res.json({ msg: `Successfully logged out user '${userId}'` });
+});
+
 module.exports = router;

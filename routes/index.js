@@ -13,6 +13,10 @@ router.use('/invite', verifyLoggedInMiddleware, require('./invite'));
 
 /**
  * @api {post} /login
+ * Logs in users
+ *
+ * @apiParam {string} userId - Facebook user id
+ * @apiParam {string} accessToken - Facebook access token
  */
 router.post('/login', api.Login.loginMiddleware(), (req, res) => {
   const userId = req.session.userId;

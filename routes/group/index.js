@@ -66,7 +66,7 @@ router.post('/', (req, res, next) => {
  */
 router.put('/:groupId', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
-  const userId = util.sanitizeFirebaseRef(req.body.userId);
+  const userId  = req.session.userId;
 
   api.Group.addUserToGroup({ userId: userId, groupId: groupId})
     .then(() => res.json({

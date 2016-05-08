@@ -162,6 +162,16 @@ router.post('/:groupId/task', (req, res, next) => {
   });
 });
 
+router.put('/:groupId/task/:taskId', (req, res, next) => {
+  const groupId = util.sanitizeFirebaseRef(req.params.groupId);
+  const taskId  = util.sanitizeFirebaseRef(req.params.taskId);
+
+  const update = req.body || {};
+  api.Group.updateTask({ taskId: taskId, groupId: groupId, update: update })
+    .then(() => res.json({ msg: `Updated task '${taskId}' in group '${groupId}'` }))
+    .catch((err) => next(err));
+});
+
 /**
  * @api {delete} /group/:groupId/task/:taskId
  * Delete a given task

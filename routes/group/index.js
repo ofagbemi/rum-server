@@ -215,9 +215,40 @@ router.get('/:groupId/task', (req, res, next) => {
   const groupId = util.sanitizeFirebaseRef(req.params.groupId);
   const limit   = parseInt(req.query.limit) || null;
 
-  api.Group.getTasks({ groupId: groupId, limit: limit })
-    .then((data) => res.json(data))
-    .catch((err) => next(err));
+  api.Group.getTasks({ groupId: groupId, limit: limit }).then((tasks) => {
+    const parallelFns = _.map(tasks, (task) => {
+      return (callback) => {
+        const fns = {};
+        if (task.assignedTo) {
+          fns.assignedTo = (cb) => {
+            api.User.get({ userId: task.assignedTo })
+              .then((user) => cb(null, user))
+              .catch((err) => cb(err));
+          };
+        }
+        if (task.creator) {
+          fns.creator = (cb) => {
+            api.User.get({ userId: task.creator })
+              .then((user) => cb(null, user))
+              .catch((err) => cb(err));
+          };
+        }
+
+        async.parallel(fns, (err, result) => {
+          callback(err, result);
+        });
+      };
+    });
+
+    async.parallel(parallelFns, (err, result) => {
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        const ext  = result[i];
+        _.extend(task, ext);
+      }
+      res.json(tasks);
+    });
+  }).catch((err) => next(err));
 });
 
 /**

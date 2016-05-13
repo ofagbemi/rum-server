@@ -5,7 +5,7 @@ const api    = require('../../lib/api');
 const base32 = require('base32');
 const util   = require('../../lib/util');
 const router = require('express').Router();
-const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
+const firebase = require('../../lib/firebase');
 
 /**
  * @api {get} /invite/:code

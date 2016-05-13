@@ -277,7 +277,8 @@ router.post('/:groupId/complete/:taskId', (req, res, next) => {
     },
 
     members: (callback) => {
-      api.Group.getMembers({ groupId: groupId })
+      // need device IDs so we can send push notifications
+      api.Group.getMembers({ groupId: groupId, getDeviceId: true })
         .then((members) => callback(null, members))
         .catch((err) => callback(err));
     }

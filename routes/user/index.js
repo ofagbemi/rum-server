@@ -54,4 +54,18 @@ router.post('/:userId/kudos', (req, res, next) => {
     .catch((err) => next(err));
 });
 
+/**
+ * @api {put} /user/:userId
+ * Update params for a given user
+ */
+ router.put('/:userId', (req, res, next) => {
+   const userId  = util.sanitizeFirebaseRef(req.params.userId);
+
+   const update = req.body || {};
+   api.User.update({ userId: userId, update: update})
+    .then(() => res.json({ msg: `Update user '${userId}'`}))
+    .catch((err) => next(err));
+ });
+
+
 module.exports = router;

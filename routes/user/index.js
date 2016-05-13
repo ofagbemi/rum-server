@@ -5,7 +5,6 @@ const util = require('../../lib/util');
 const async = require('async');
 const router = require('express').Router();
 const api   = require('../../lib/api');
-const firebase = new (require('firebase'))(process.env.FIREBASE_URL);
 
 /**
  * @api {get} /user/:userId
